@@ -103,8 +103,11 @@
               e.features[0].properties?.activities
             );
 
+            const latlngForPopup = e.features[0].geometry.type === "MultiPolygon" ? e.features[0].geometry.coordinates[0][0][0]
+                                                                                  : e.features[0].geometry.coordinates[0][0]
+
             const popup = new mapboxgl.Popup({ closeOnClick: true })
-              .setLngLat(e.features[0].geometry.coordinates[0][0])
+              .setLngLat(latlngForPopup)
               .setHTML(
                 `
                 <h2>${e.features[0].properties.name}</h2>
