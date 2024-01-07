@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Load data from an external GeoJSON file</title>
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <link
+      href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css"
+      rel="stylesheet"
+    />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <script>
+      mapboxgl.accessToken =
+        'pk.eyJ1Ijoicmh3aWxidXJuIiwiYSI6ImNpbTMyMXc3ODAxYThycmtzc3E0bWV0d2sifQ.V5wpemBVM-y3D4D8ujr6hg';
+      const map = new mapboxgl.Map({
+        container: 'map', // container ID
+        // Choose from Mapbox's core styles, or make your own style with Mapbox Studio
+        style: 'mapbox://styles/mapbox/streets-v12', // style URL
+        projection: 'mercator', // Display the map as a globe, since satellite-v9 defaults to Mercator
+        zoom: 4, // starting zoom
+        center: [173.24779988436347, -41.83794486112006], // // starting center in [lng, lat]
+      });
+
+      let hoveredPolygonId = null;
+
+      map.on('load', () => {
+        map.addSource('councils', {
+          type: 'geojson',
+          // Use a URL for the value for the `data` property.
+          data: './council.json',
+        });
+
+        // The feature-state dependent fill-opacity expression will render the hover effect
+        // when a feature's hover state is set to true.
+        map.addLayer({
+          id: 'councils-fills',
+          type: 'fill',
+          source: 'councils',
+          layout: {},
+          paint: {
+            'fill-color': '#627BC1',
+            'fill-opacity': [
+              'case',
+              ['boolean', ['feature-state', 'hover'], false],
+              1,
+              0.1,
+            ],
+          },
+        });
+
+        map.addLayer({
+          id: 'councils-borders',
+          type: 'line',
+          source: 'councils',
+          paint: {
+            'fill-color': '#0080ff', // blue color fill
+            'fill-opacity': 0.5,
+          },
+        });
+
+        // When the user moves their mouse over the state-fill layer, we'll update the
+        // feature state for the feature under the mouse.
+        map.on('mousemove', 'councils-fills', (e) => {
+          if (e.features.length > 0) {
+            if (hoveredPolygonId !== null) {
+              map.setFeatureState(
+                { source: 'councils', id: hoveredPolygonId },
+                { hover: false }
+              );
+            }
+            hoveredPolygonId = e.features[0].id;
+            map.setFeatureState(
+              { source: 'councils', id: hoveredPolygonId },
+              { hover: true }
+            );
+          }
+        });
+
+        map.on('click', 'councils-fills', (e) => {
+          if (e.features.length > 0) {
+            console.log(e.features[0]);
+
+            let activityLinksArray = JSON.parse(
+              e.features[0].properties?.activities
+            );
+
+            const popup = new mapboxgl.Popup({ closeOnClick: true })
+              .setLngLat(e.features[0].geometry.coordinates[0][0])
+              .setHTML(
+                `
+                <h2>${e.features[0].properties.name}</h2>
+                <!-- 
+                  <h3>Activities</h2>
+                <a href="${
+                  JSON.parse(e.features[0].properties?.activities)[0]
+                }">Local events</a>
+                -->
+                <h3>Facilities</h2>
+                  <a href="${
+                    e.features[0].properties?.bookings
+                  }">Book a sports field</a>
+                `
+              )
+              .addTo(map);
+          }
+        });
+
+        // When the mouse leaves the state-fill layer, update the feature state of the
+        // previously hovered feature.
+        map.on('mouseleave', 'councils-fills', () => {
+          if (hoveredPolygonId !== null) {
+            map.setFeatureState(
+              { source: 'councils', id: hoveredPolygonId },
+              { hover: false }
+            );
+          }
+          hoveredPolygonId = null;
+        });
+      });
+    </script>
+  </body>
+</html>
